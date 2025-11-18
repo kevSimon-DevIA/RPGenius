@@ -3,12 +3,63 @@
 from __future__ import annotations
 
 import os
+import subprocess
+import sys
+import webbrowser
 from typing import Any, Iterable
+from urllib.parse import urlparse
 
 import spotipy
 from spotipy.oauth2 import SpotifyOAuth
+from spotipy.util import get_host_port
 
 from rpgenius.config import ConfigError, SpotifyConfig
+
+
+def _open_url_with_system_browser(url: str) -> None:
+    """Ouvre une URL avec l’outil système adapté à l’environnement."""
+    if "WSL_DISTRO_NAME" in os.environ:
+        try:
+            subprocess.run(["wslview", url], check=False)
+            return
+        except FileNotFoundError:
+            pass
+
+    if sys.platform.startswith("linux"):
+        try:
+            subprocess.run(["xdg-open", url], check=False)
+            return
+        except FileNotFoundError:
+            pass
+
+    try:
+        webbrowser.open(url)
+    except webbrowser.Error:
+        pass
+
+
+class SpotifyOAuthWSL(SpotifyOAuth):
+    """OAuth personnalisé pour forcer l’ouverture automatique sous Linux/WSL."""
+
+    def _open_auth_url(self) -> None:
+        auth_url = self.get_authorize_url()
+        _open_url_with_system_browser(auth_url)
+
+    def get_auth_response(self, open_browser=None):
+        redirect_info = urlparse(self.redirect_uri)
+        redirect_host, redirect_port = get_host_port(redirect_info.netloc)
+
+        if (
+            redirect_info.scheme == "http"
+            and redirect_host in ("127.0.0.1", "localhost")
+            and redirect_port
+        ):
+            try:
+                return self._get_auth_response_local_server(redirect_port)
+            except Exception:
+                pass
+
+        return super().get_auth_response(open_browser=open_browser)
 
 
 class SpotifyServiceError(RuntimeError):
@@ -38,7 +89,7 @@ class SpotifyService:
             return None
 
         try:
-            auth_manager = SpotifyOAuth(
+            auth_manager = SpotifyOAuthWSL(
                 client_id=self._config.client_id,
                 client_secret=self._config.client_secret,
                 redirect_uri=self._config.redirect_uri,
@@ -71,7 +122,7 @@ class SpotifyService:
             )
 
         try:
-            self._auth_manager = SpotifyOAuth(
+            self._auth_manager = SpotifyOAuthWSL(
                 client_id=self._config.client_id,
                 client_secret=self._config.client_secret,
                 redirect_uri=self._config.redirect_uri,
