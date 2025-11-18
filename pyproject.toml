@@ -8,4 +8,5 @@ dependencies = [
     "python-dotenv>=1.2.1",
     "spotipy>=2.25.1",
     "sv-ttk>=2.6",
+    "pillow>=10.3.0",
 ]

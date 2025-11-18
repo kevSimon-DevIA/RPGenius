@@ -13,6 +13,7 @@ class AppState:
     track_uris: dict[str, str] = field(default_factory=dict)
     device_map: dict[str, str] = field(default_factory=dict)
     username: str | None = None
+    avatar_url: str | None = None
 
     @property
     def is_authenticated(self) -> bool:
@@ -22,6 +23,7 @@ class AppState:
     def reset(self) -> None:
         """Réinitialise l'état de l'application."""
         self.username = None
+        self.avatar_url = None
         self.device_map.clear()
         self.clear_tracks()
 
