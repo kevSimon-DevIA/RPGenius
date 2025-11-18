@@ -5,9 +5,19 @@ from __future__ import annotations
 import tkinter as tk
 from tkinter import messagebox, ttk
 
+import sv_ttk
+
 from rpgenius.config import ConfigError
 from rpgenius.services import SpotifyService, SpotifyServiceError
 from rpgenius.state import AppState
+
+ACCENT_COLOR = "#1DB954"
+BACKGROUND_COLOR = "#121212"
+CARD_COLOR = "#181818"
+STATUS_NEUTRAL_COLOR = "#B3B3B3"
+STATUS_ERROR_COLOR = "#F87171"
+STATUS_SUCCESS_COLOR = "#1DB954"
+LISTBOX_SELECTION_FG = "#000000"
 
 
 class MainWindow:
@@ -19,99 +29,234 @@ class MainWindow:
 
         self.root = tk.Tk()
         self.root.title("RPGenius – Ambiance Spotify")
-        self.root.geometry("520x420")
+        self.root.geometry("900x600")
+        self.root.minsize(820, 540)
+
+        sv_ttk.set_theme("dark")
+        self.root.configure(bg=BACKGROUND_COLOR)
+        self._configure_styles()
 
         self._device_var = tk.StringVar()
+        self._search_var = tk.StringVar()
         self._build_ui()
 
     # --------------------------------------------------------------------- UI -
+    def _configure_styles(self) -> None:
+        style = ttk.Style()
+        style.configure("Main.TFrame", background=BACKGROUND_COLOR)
+        style.configure("Header.TFrame", background=BACKGROUND_COLOR)
+        style.configure("Card.TFrame", background=CARD_COLOR)
+        style.configure(
+            "HeaderTitle.TLabel",
+            background=BACKGROUND_COLOR,
+            foreground="#FFFFFF",
+            font=("Helvetica", 20, "bold"),
+        )
+        style.configure(
+            "Subtitle.TLabel",
+            background=BACKGROUND_COLOR,
+            foreground=STATUS_NEUTRAL_COLOR,
+            font=("Helvetica", 11),
+        )
+        style.configure(
+            "Section.TLabel",
+            background=CARD_COLOR,
+            foreground="#FFFFFF",
+            font=("Helvetica", 12, "bold"),
+        )
+        style.configure(
+            "Status.TLabel",
+            background=BACKGROUND_COLOR,
+            foreground=STATUS_NEUTRAL_COLOR,
+            font=("Helvetica", 11),
+        )
+        style.configure("Accent.TButton", font=("Helvetica", 11, "bold"))
+        style.map(
+            "Accent.TButton",
+            background=[("active", "#1ED760"), ("pressed", "#1AA34A")],
+        )
+        style.configure("TButton", padding=(16, 8))
+        style.map("TButton", background=[("disabled", "#2B2B2B")])
+        style.configure(
+            "Device.TCombobox",
+            fieldbackground=CARD_COLOR,
+            background=CARD_COLOR,
+            foreground="#FFFFFF",
+        )
+        style.map(
+            "Device.TCombobox",
+            fieldbackground=[("readonly", CARD_COLOR)],
+            foreground=[("readonly", "#FFFFFF")],
+        )
+        style.configure(
+            "Vertical.TScrollbar",
+            troughcolor=CARD_COLOR,
+            background=CARD_COLOR,
+            bordercolor=CARD_COLOR,
+        )
+        self.root.option_add("*Font", "Helvetica 11")
+
     def _build_ui(self) -> None:
-        main_frame = tk.Frame(self.root, padx=12, pady=12)
-        main_frame.pack(fill=tk.BOTH, expand=True)
+        self.root.columnconfigure(0, weight=1)
+        self.root.rowconfigure(0, weight=1)
+
+        main_frame = ttk.Frame(self.root, padding=(24, 24, 24, 16), style="Main.TFrame")
+        main_frame.grid(row=0, column=0, sticky="nsew")
+        main_frame.columnconfigure(0, weight=1)
+        main_frame.rowconfigure(2, weight=1)
 
         self._build_auth_section(main_frame)
         self._build_search_section(main_frame)
-        self._build_device_section(main_frame)
-        self._build_results_section(main_frame)
+
+        content_frame = ttk.Frame(main_frame, style="Main.TFrame")
+        content_frame.grid(row=2, column=0, sticky="nsew")
+        content_frame.columnconfigure(0, weight=1)
+        content_frame.rowconfigure(1, weight=1)
+
+        self._build_device_section(content_frame)
+        self._build_results_section(content_frame)
         self._build_play_section(main_frame)
 
     def _build_auth_section(self, parent: tk.Misc) -> None:
-        frame = tk.Frame(parent)
-        frame.pack(fill=tk.X, pady=(0, 10))
+        frame = ttk.Frame(parent, style="Header.TFrame")
+        frame.grid(row=0, column=0, sticky="ew", pady=(0, 20))
+        frame.columnconfigure(0, weight=1)
 
-        self._auth_button = tk.Button(
+        title = ttk.Label(frame, text="RPGenius", style="HeaderTitle.TLabel")
+        title.grid(row=0, column=0, sticky="w")
+
+        subtitle = ttk.Label(
+            frame,
+            text="Trouvez la bonne ambiance Spotify en un clin d'oeil",
+            style="Subtitle.TLabel",
+        )
+        subtitle.grid(row=1, column=0, sticky="w", pady=(4, 0))
+
+        self._auth_button = ttk.Button(
             frame,
             text="Se connecter à Spotify",
             command=self.authenticate_spotify,
-            width=22,
+            style="Accent.TButton",
         )
-        self._auth_button.pack(side=tk.LEFT)
+        self._auth_button.grid(row=0, column=1, rowspan=2, sticky="e")
 
-        self._status_label = tk.Label(frame, text="Non connecté", fg="red", padx=12)
-        self._status_label.pack(side=tk.LEFT)
+        self._status_label = ttk.Label(
+            frame,
+            text="Non connecté",
+            style="Status.TLabel",
+        )
+        self._status_label.grid(row=2, column=0, columnspan=2, sticky="w", pady=(16, 0))
 
     def _build_search_section(self, parent: tk.Misc) -> None:
-        frame = tk.Frame(parent)
-        frame.pack(fill=tk.X, pady=(0, 10))
+        frame = ttk.Frame(parent, style="Card.TFrame", padding=(20, 18))
+        frame.grid(row=1, column=0, sticky="ew", pady=(0, 20))
+        frame.columnconfigure(0, weight=1)
 
-        label = tk.Label(frame, text="Recherche :")
-        label.pack(side=tk.LEFT)
+        label = ttk.Label(
+            frame,
+            text="Rechercher un titre, un artiste ou une ambiance",
+            style="Section.TLabel",
+        )
+        label.grid(row=0, column=0, columnspan=2, sticky="w")
 
-        self._search_entry = tk.Entry(frame, width=40, state=tk.DISABLED)
-        self._search_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=6)
+        self._search_entry = ttk.Entry(
+            frame,
+            textvariable=self._search_var,
+            state="disabled",
+        )
+        self._search_entry.grid(row=1, column=0, sticky="ew", pady=(14, 0), padx=(0, 12))
 
-        self._search_button = tk.Button(
+        self._search_button = ttk.Button(
             frame,
             text="Chercher",
             command=self.search_tracks,
+            style="Accent.TButton",
             state=tk.DISABLED,
         )
-        self._search_button.pack(side=tk.LEFT)
+        self._search_button.grid(row=1, column=1, sticky="ew", pady=(14, 0))
 
     def _build_device_section(self, parent: tk.Misc) -> None:
-        frame = tk.Frame(parent)
-        frame.pack(fill=tk.X, pady=(0, 10))
+        frame = ttk.Frame(parent, style="Card.TFrame", padding=(20, 18))
+        frame.grid(row=0, column=0, sticky="ew")
+        frame.columnconfigure(0, weight=1)
 
-        label = tk.Label(frame, text="Appareil :")
-        label.pack(side=tk.LEFT)
+        label = ttk.Label(
+            frame,
+            text="Choisir un appareil de lecture Spotify",
+            style="Section.TLabel",
+        )
+        label.grid(row=0, column=0, columnspan=2, sticky="w")
 
         self._device_combo = ttk.Combobox(
             frame,
             textvariable=self._device_var,
             state="readonly",
-            width=32,
+            style="Device.TCombobox",
         )
-        self._device_combo.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=6)
+        self._device_combo.grid(row=1, column=0, sticky="ew", pady=(14, 0), padx=(0, 12))
 
-        self._refresh_devices_button = tk.Button(
+        self._refresh_devices_button = ttk.Button(
             frame,
             text="Actualiser",
             command=self.refresh_devices,
             state=tk.DISABLED,
         )
-        self._refresh_devices_button.pack(side=tk.LEFT)
+        self._refresh_devices_button.grid(row=1, column=1, sticky="ew", pady=(14, 0))
 
     def _build_results_section(self, parent: tk.Misc) -> None:
-        frame = tk.Frame(parent)
-        frame.pack(fill=tk.BOTH, expand=True)
+        frame = ttk.Frame(parent, style="Card.TFrame", padding=(20, 18))
+        frame.grid(row=1, column=0, sticky="nsew", pady=(20, 0))
+        parent.rowconfigure(1, weight=1)
+        frame.columnconfigure(0, weight=1)
+        frame.rowconfigure(1, weight=1)
 
-        self._results_listbox = tk.Listbox(frame, activestyle=tk.NONE)
-        self._results_listbox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        label = ttk.Label(
+            frame,
+            text="Résultats de recherche",
+            style="Section.TLabel",
+        )
+        label.grid(row=0, column=0, sticky="w")
 
-        scrollbar = tk.Scrollbar(frame, orient=tk.VERTICAL)
-        scrollbar.config(command=self._results_listbox.yview)
-        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        list_container = ttk.Frame(frame, style="Card.TFrame")
+        list_container.grid(row=1, column=0, sticky="nsew", pady=(16, 0))
+        list_container.columnconfigure(0, weight=1)
+        list_container.rowconfigure(0, weight=1)
 
-        self._results_listbox.config(yscrollcommand=scrollbar.set)
+        self._results_listbox = tk.Listbox(
+            list_container,
+            activestyle=tk.NONE,
+            bg=CARD_COLOR,
+            fg="#FFFFFF",
+            font=("Helvetica", 11),
+            highlightthickness=0,
+            selectbackground=ACCENT_COLOR,
+            selectforeground=LISTBOX_SELECTION_FG,
+            relief=tk.FLAT,
+            borderwidth=0,
+        )
+        self._results_listbox.grid(row=0, column=0, sticky="nsew")
+
+        scrollbar = ttk.Scrollbar(
+            list_container,
+            orient=tk.VERTICAL,
+            command=self._results_listbox.yview,
+        )
+        scrollbar.grid(row=0, column=1, sticky="ns")
+
+        self._results_listbox.configure(yscrollcommand=scrollbar.set)
 
     def _build_play_section(self, parent: tk.Misc) -> None:
-        self._play_button = tk.Button(
-            parent,
+        frame = ttk.Frame(parent, style="Main.TFrame")
+        frame.grid(row=3, column=0, sticky="ew", pady=(24, 0))
+
+        self._play_button = ttk.Button(
+            frame,
             text="Jouer la piste sélectionnée",
             command=self.play_selected_track,
+            style="Accent.TButton",
             state=tk.DISABLED,
         )
-        self._play_button.pack(pady=12)
+        self._play_button.pack(side=tk.RIGHT)
 
     # --------------------------------------------------------------- Callbacks -
     def authenticate_spotify(self) -> None:
@@ -119,25 +264,34 @@ class MainWindow:
             user = self._service.authenticate()
         except ConfigError as exc:
             messagebox.showwarning("Identifiants manquants", str(exc))
-            self._status_label.config(text="Identifiants absents", fg="red")
+            self._status_label.configure(
+                text="Identifiants absents",
+                foreground=STATUS_ERROR_COLOR,
+            )
             return
         except SpotifyServiceError as exc:
             messagebox.showerror(
                 "Erreur d'authentification",
                 f"Impossible de se connecter à Spotify : {exc}",
             )
-            self._status_label.config(text="Échec de la connexion", fg="red")
+            self._status_label.configure(
+                text="Échec de la connexion",
+                foreground=STATUS_ERROR_COLOR,
+            )
             return
 
         self._state.username = user.get("display_name") or user.get("id")
         username = self._state.username or "Utilisateur"
 
-        self._status_label.config(text=f"Connecté en tant que : {username}", fg="green")
-        self._search_entry.config(state=tk.NORMAL)
-        self._search_button.config(state=tk.NORMAL)
-        self._play_button.config(state=tk.NORMAL)
-        self._auth_button.config(state=tk.DISABLED)
-        self._refresh_devices_button.config(state=tk.NORMAL)
+        self._status_label.configure(
+            text=f"Connecté en tant que : {username}",
+            foreground=STATUS_SUCCESS_COLOR,
+        )
+        self._search_entry.configure(state=tk.NORMAL)
+        self._search_button.configure(state=tk.NORMAL)
+        self._play_button.configure(state=tk.NORMAL)
+        self._auth_button.configure(state=tk.DISABLED)
+        self._refresh_devices_button.configure(state=tk.NORMAL)
 
         self.refresh_devices()
 
