@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from typing import Any, Iterable
 
 import spotipy
@@ -50,6 +51,16 @@ class SpotifyService:
             raise SpotifyServiceError("Erreur Spotify lors de l'authentification.") from exc
         except Exception as exc:  # noqa: BLE001
             raise SpotifyServiceError("Échec de l'authentification Spotify.") from exc
+
+    def logout(self) -> None:
+        """Déconnecte l'utilisateur et supprime le cache des identifiants."""
+        self._client = None
+        self._auth_manager = None
+
+        try:
+            os.remove(self._cache_path)
+        except FileNotFoundError:
+            pass
 
     def search_tracks(self, query: str, *, limit: int = 20) -> list[dict[str, Any]]:
         """Retourne une liste de pistes Spotify correspondant à la requête."""

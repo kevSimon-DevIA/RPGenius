@@ -14,6 +14,17 @@ class AppState:
     device_map: dict[str, str] = field(default_factory=dict)
     username: str | None = None
 
+    @property
+    def is_authenticated(self) -> bool:
+        """Retourne True si l'utilisateur est authentifié."""
+        return self.username is not None
+
+    def reset(self) -> None:
+        """Réinitialise l'état de l'application."""
+        self.username = None
+        self.device_map.clear()
+        self.clear_tracks()
+
     def clear_tracks(self) -> None:
         self.track_uris.clear()
 

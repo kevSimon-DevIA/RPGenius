@@ -116,6 +116,7 @@ class MainWindow:
         self._build_device_section(content_frame)
         self._build_results_section(content_frame)
         self._build_play_section(main_frame)
+        self._update_auth_ui()
 
     def _build_auth_section(self, parent: tk.Misc) -> None:
         frame = ttk.Frame(parent, style="Header.TFrame")
@@ -134,7 +135,7 @@ class MainWindow:
 
         self._auth_button = ttk.Button(
             frame,
-            text="Se connecter à Spotify",
+            text="Connexion",
             command=self.authenticate_spotify,
             style="Accent.TButton",
         )
@@ -281,19 +282,55 @@ class MainWindow:
             return
 
         self._state.username = user.get("display_name") or user.get("id")
-        username = self._state.username or "Utilisateur"
-
-        self._status_label.configure(
-            text=f"Connecté en tant que : {username}",
-            foreground=STATUS_SUCCESS_COLOR,
-        )
-        self._search_entry.configure(state=tk.NORMAL)
-        self._search_button.configure(state=tk.NORMAL)
-        self._play_button.configure(state=tk.NORMAL)
-        self._auth_button.configure(state=tk.DISABLED)
-        self._refresh_devices_button.configure(state=tk.NORMAL)
+        self._update_auth_ui()
 
         self.refresh_devices()
+
+    def disconnect_spotify(self) -> None:
+        """Déconnecte l'utilisateur de Spotify."""
+        if not self._service.is_authenticated:
+            return
+
+        self._service.logout()
+        self._state.reset()
+        self._update_auth_ui()
+
+    def _update_auth_ui(self) -> None:
+        """Met à jour l'interface en fonction de l'état d'authentification."""
+        is_authenticated = self._state.is_authenticated
+
+        if is_authenticated:
+            username = self._state.username or "Utilisateur"
+            self._status_label.configure(
+                text=f"Connecté en tant que : {username}",
+                foreground=STATUS_SUCCESS_COLOR,
+            )
+            self._auth_button.configure(
+                text="Déconnexion",
+                command=self.disconnect_spotify,
+                state=tk.NORMAL,
+            )
+            self._search_entry.configure(state=tk.NORMAL)
+            self._search_button.configure(state=tk.NORMAL)
+            self._play_button.configure(state=tk.NORMAL)
+            self._refresh_devices_button.configure(state=tk.NORMAL)
+        else:
+            self._status_label.configure(text="Non connecté", foreground=STATUS_NEUTRAL_COLOR)
+            self._auth_button.configure(
+                text="Connexion",
+                command=self.authenticate_spotify,
+                state=tk.NORMAL,
+            )
+            self._search_entry.configure(state=tk.DISABLED)
+            self._search_entry.delete(0, tk.END)
+            self._search_var.set("")
+            self._search_button.configure(state=tk.DISABLED)
+            self._play_button.configure(state=tk.DISABLED)
+            self._refresh_devices_button.configure(state=tk.DISABLED)
+            self._results_listbox.delete(0, tk.END)
+            self._device_combo.set("")
+            self._device_combo["values"] = []
+            self._device_var.set("")
 
     def search_tracks(self) -> None:
         query = self._search_entry.get()
