@@ -1,0 +1,59 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+.egg-info/
+*.egg
+*.whl
+
+# uv / virtual env
+.venv/
+venv/
+.env/
+.env
+.envrc
+uv.lock
+.uv/
+
+# Spotify cache
+.spotify_cache
+
+# IDEs and editors
+.vscode/
+.idea/
+*.sublime-workspace
+*.sublime-project
+
+# MacOS
+.DS_Store
+
+# Logs
+*.log
+
+# Coverage reports
+htmlcov/
+.coverage
+.coverage.*
+.cache/
+.pytest_cache/
+
+# Misc
+*.pyo
+*.pyd
+# Python-generated files
+.python-version
+__pycache__/
+*.py[oc]
+__init__.py
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
