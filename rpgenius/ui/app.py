@@ -60,10 +60,8 @@ class MainWindow:
         self.root.configure(bg=BACKGROUND_COLOR)
         self._configure_styles()
 
-        self._device_var = tk.StringVar()
         self._search_var = tk.StringVar()
         self._search_after_id: str | None = None
-        self._device_status_var = tk.StringVar(value="Aucun appareil sélectionné")
         self._profile_photo: ImageTk.PhotoImage | None = None
         self._profile_menu: tk.Menu | None = None
         self._profile_label: tk.Label | None = None
@@ -75,56 +73,20 @@ class MainWindow:
         self._search_action_icon: tk.Label | None = None
         self._search_placeholder_active = True
         self._suspend_search_callback = False
-        self._device_icon: ttk.Label | None = None
-        self._device_menu: tk.Menu | None = None
-
-        self._results_canvas: tk.Canvas | None = None
-        self._results_scrollable_frame: tk.Frame | None = None
-        self._results_canvas_window: int | None = None  # ID de la fenêtre du canvas
-        self._result_items: list[tuple[str, tk.Frame]] = []  # Liste des éléments de résultat (display_name, frame)
-        self._result_images: dict[str, ImageTk.PhotoImage] = {}  # Cache des images redimensionnées
-
-        self._player_frame: ttk.Frame | None = None
-        self._play_pause_button: ttk.Button | None = None
-        self._previous_button: ttk.Button | None = None
-        self._next_button: ttk.Button | None = None
-        self._progress_bar: ttk.Progressbar | None = None
-        self._time_label: tk.Label | None = None
-        self._remaining_time_label: tk.Label | None = None
-        self._progress_update_job: str | None = None
-        self._is_playing = False
-        
-        # Éléments d'affichage du titre actuel
-        self._current_track_image: ImageTk.PhotoImage | None = None
-        self._current_track_image_label: tk.Label | None = None
-        self._current_track_title_label: tk.Label | None = None
-        self._current_track_artist_label: tk.Label | None = None
-        self._current_track_frame: ttk.Frame | None = None
 
         self._icon_search: ImageTk.PhotoImage | None = None
         self._icon_folder: ImageTk.PhotoImage | None = None
-        self._icon_speaker_on: ImageTk.PhotoImage | None = None
-        self._icon_speaker_off: ImageTk.PhotoImage | None = None
-        self._icon_play: ImageTk.PhotoImage | None = None
-        self._icon_pause: ImageTk.PhotoImage | None = None
-        self._icon_next: ImageTk.PhotoImage | None = None
-        self._icon_previous: ImageTk.PhotoImage | None = None
         
         self._header_frame: ttk.Frame | None = None
         self._search_frame: ttk.Frame | None = None
-        self._device_frame: ttk.Frame | None = None
-        self._results_frame: ttk.Frame | None = None
 
         self._load_icons()
 
         self.root.columnconfigure(0, weight=1)
         self.root.rowconfigure(0, weight=0)
         self.root.rowconfigure(1, weight=1)
-        self.root.rowconfigure(2, weight=0)
 
         self._build_header()
-        self._build_main_area()
-        self._update_player_icons()
         self._update_auth_ui()
         
         # Tenter une authentification automatique depuis le cache
@@ -230,10 +192,8 @@ class MainWindow:
         self._search_entry.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         self._search_entry.configure(font=("Helvetica", 12))
         self._search_entry.configure(disabledbackground=SEARCH_BG_COLOR, disabledforeground=SEARCH_PLACEHOLDER_COLOR)
-        self._search_entry.bind("<Return>", lambda _: self.search_tracks(manual_trigger=True))
         self._search_entry.bind("<FocusIn>", self._on_search_focus_in)
         self._search_entry.bind("<FocusOut>", self._on_search_focus_out)
-        self._search_var.trace_add("write", self._on_search_var_changed)
 
         self._search_separator = tk.Frame(
             self._search_container,
@@ -680,47 +640,24 @@ class MainWindow:
             padding_x = 8
             padding_y = 4
             search_padx = 8
-            card_padding_x = 10
-            card_padding_y = 10
         elif width < 800:
             # Petits écrans : padding réduit
             padding_x = 12
             padding_y = 6
             search_padx = 12
-            card_padding_x = 12
-            card_padding_y = 12
         elif width < 1200:
             # Écrans moyens : padding modéré
             padding_x = 18
             padding_y = 8
             search_padx = 18
-            card_padding_x = 16
-            card_padding_y = 14
         else:
             # Grands écrans : padding normal
             padding_x = 24
             padding_y = 8
             search_padx = 24
-            card_padding_x = 20
-            card_padding_y = 18
         
         if self._header_frame:
             self._header_frame.configure(padding=(padding_x, padding_y))
-        
-        if self._player_frame:
-            self._player_frame.configure(padding=(padding_x, padding_y))
-        
-        if self._main_frame:
-            if width < 700:
-                main_padding_x = 8
-                main_padding_y = 6 if height >= 500 else 4
-            elif width < 800:
-                main_padding_x = 12
-                main_padding_y = 8 if height >= 500 else 6
-            else:
-                main_padding_x = padding_x
-                main_padding_y = 12 if height >= 600 else 8
-            self._main_frame.configure(padding=(main_padding_x, main_padding_y, main_padding_x, main_padding_y))
         
         if self._search_frame:
             self._search_frame.grid_configure(padx=search_padx)
@@ -761,12 +698,6 @@ class MainWindow:
         
         if self._search_entry:
             self._search_entry.configure(font=("Helvetica", search_font_size))
-        
-        # Ajuster le padding des cartes
-        if self._device_frame:
-            self._device_frame.configure(padding=(card_padding_x, card_padding_y))
-        if self._results_frame:
-            self._results_frame.configure(padding=(card_padding_x, card_padding_y))
 
     def _set_search_placeholder(self) -> None:
         if not self._search_entry:
@@ -799,17 +730,6 @@ class MainWindow:
             return
         if not self._search_var.get().strip():
             self._set_search_placeholder()
-
-    def _on_search_var_changed(self, *_: object) -> None:
-        if (
-            self._suspend_search_callback
-            or self._search_placeholder_active
-            or not self._state.is_authenticated
-        ):
-            return
-        if self._search_after_id:
-            self.root.after_cancel(self._search_after_id)
-        self._search_after_id = self.root.after(SEARCH_DEBOUNCE_MS, self.search_tracks)
 
     def _show_profile_menu(self, event: tk.Event) -> None:
         if not self._state.is_authenticated or not self._profile_menu:
@@ -912,9 +832,6 @@ class MainWindow:
                 images = user.get("images") or []
                 self._state.avatar_url = images[0].get("url") if images else None
                 self._update_auth_ui()
-                self.refresh_devices()
-                # Démarrer la surveillance de la lecture pour détecter ce qui est joué
-                self._start_progress_update()
         except Exception:
             # En cas d'erreur, ne rien faire - l'utilisateur devra se connecter manuellement
             pass
@@ -937,10 +854,6 @@ class MainWindow:
         self._state.avatar_url = images[0].get("url") if images else None
         self._update_auth_ui()
 
-        self.refresh_devices()
-        # Démarrer la surveillance de la lecture pour détecter ce qui est joué
-        self._start_progress_update()
-
     def disconnect_spotify(self) -> None:
         """Déconnecte l'utilisateur de Spotify."""
         if not self._service.is_authenticated:
@@ -955,19 +868,9 @@ class MainWindow:
         is_authenticated = self._state.is_authenticated
 
         if is_authenticated:
-            self._auth_button.configure(state=tk.DISABLED)
-            self._auth_button.grid_remove()
             self._search_entry.configure(state=tk.NORMAL)
             self._search_entry.focus()
-            self._refresh_devices_button.configure(state=tk.NORMAL)
-            self._update_device_icon()
         else:
-            self._auth_button.configure(
-                text="Connexion",
-                command=self.authenticate_spotify,
-                state=tk.NORMAL,
-            )
-            self._auth_button.grid()
             if self._search_after_id:
                 try:
                     self.root.after_cancel(self._search_after_id)
@@ -976,23 +879,6 @@ class MainWindow:
                 self._search_after_id = None
             self._search_entry.configure(state=tk.DISABLED)
             self._set_search_placeholder()
-            self._refresh_devices_button.configure(state=tk.DISABLED)
-            self._clear_results_display()
-            self._state.clear_tracks()
-            self._device_var.set("")
-            if self._device_menu:
-                self._device_menu.delete(0, "end")
-            self._update_device_icon()
-            # Désactiver les contrôles de lecture
-            if self._play_pause_button:
-                self._play_pause_button.configure(state=tk.DISABLED)
-            if self._previous_button:
-                self._previous_button.configure(state=tk.DISABLED)
-            if self._next_button:
-                self._next_button.configure(state=tk.DISABLED)
-            self._stop_progress_update()
-            # Réinitialiser l'affichage du titre actuel
-            self._update_current_track_display(None)
         self._update_profile_avatar()
 
     def search_tracks(self, manual_trigger: bool = False) -> None:
